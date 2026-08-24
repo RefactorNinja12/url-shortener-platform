@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE } from "@/app/lib/session";
 
 const GO_API_URL = process.env.GO_API_URL ?? "http://localhost:8080";
 
 export async function POST(request: NextRequest) {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  if (!token) {
+    return NextResponse.json({ error: "du måste vara inloggad" }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => null);
   const url = body?.url;
 
@@ -14,7 +20,10 @@ export async function POST(request: NextRequest) {
   try {
     apiRes = await fetch(`${GO_API_URL}/shorten`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ url }),
     });
   } catch {

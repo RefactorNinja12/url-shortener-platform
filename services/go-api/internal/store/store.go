@@ -40,12 +40,14 @@ func (s *Store) Close() {
 }
 
 // CreateURL sparar en ny URL-mappning och returnerar den sparade posten.
-func (s *Store) CreateURL(ctx context.Context, code, originalURL string) (*URL, error) {
-	const q = `INSERT INTO urls (code, original_url) VALUES ($1, $2)
+// ownerID kan vara nil (t.ex. om anropet inte är kopplat till en autentiserad
+// användare).
+func (s *Store) CreateURL(ctx context.Context, code, originalURL string, ownerID *int64) (*URL, error) {
+	const q = `INSERT INTO urls (code, original_url, owner_id) VALUES ($1, $2, $3)
 	           RETURNING id, code, original_url, created_at, owner_id`
 
 	var u URL
-	row := s.pool.QueryRow(ctx, q, code, originalURL)
+	row := s.pool.QueryRow(ctx, q, code, originalURL, ownerID)
 	if err := row.Scan(&u.ID, &u.Code, &u.OriginalURL, &u.CreatedAt, &u.OwnerID); err != nil {
 		return nil, err
 	}

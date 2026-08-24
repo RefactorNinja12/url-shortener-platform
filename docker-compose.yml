@@ -46,6 +46,7 @@ services:
       ADDR: ":8080"
       BASE_URL: "http://localhost:8080"
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,6 +85,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
@@ -92,8 +98,11 @@ services:
       - "3000:3000"
     environment:
       GO_API_URL: "http://go-api:8080"
+      AUTH_API_URL: "http://auth-admin:8080"
     depends_on:
       go-api:
+        condition: service_healthy
+      auth-admin:
         condition: service_healthy
 
 volumes:

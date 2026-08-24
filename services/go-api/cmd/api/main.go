@@ -13,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/rini/url-shortener/go-api/internal/auth"
 	"github.com/rini/url-shortener/go-api/internal/handler"
 	"github.com/rini/url-shortener/go-api/internal/queue"
 	"github.com/rini/url-shortener/go-api/internal/store"
@@ -40,8 +41,15 @@ func main() {
 	publisher := queue.Connect(rabbitURL, logger)
 	defer publisher.Close()
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		logger.Error("JWT_SECRET is required")
+		os.Exit(1)
+	}
+	verifier := auth.NewVerifier(jwtSecret)
+
 	baseURL := envOrDefault("BASE_URL", "http://localhost:8080")
-	h := handler.New(db, logger, baseURL, publisher)
+	h := handler.New(db, logger, baseURL, publisher, verifier)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
