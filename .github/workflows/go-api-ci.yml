@@ -1,0 +1,34 @@
+name: go-api CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/go-api/**"
+      - ".github/workflows/go-api-ci.yml"
+  pull_request:
+    paths:
+      - "services/go-api/**"
+      - ".github/workflows/go-api-ci.yml"
+
+defaults:
+  run:
+    working-directory: services/go-api
+
+jobs:
+  lint-and-test:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/go-api/go.mod
+          cache-dependency-path: services/go-api/go.sum
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./... -v
