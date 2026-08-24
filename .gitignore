@@ -2,6 +2,15 @@
 services/go-api/bin/
 *.exe
 
+# .NET
+services/auth-admin/bin/
+services/auth-admin/obj/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # Env-filer med hemligheter
 .env
 .env.local

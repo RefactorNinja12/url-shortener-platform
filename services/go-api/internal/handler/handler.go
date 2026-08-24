@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/rini/url-shortener/go-api/internal/queue"
 	"github.com/rini/url-shortener/go-api/internal/shortener"
 	"github.com/rini/url-shortener/go-api/internal/store"
 )
@@ -19,13 +21,14 @@ const maxCodeGenerationAttempts = 5
 const pgUniqueViolation = "23505"
 
 type Handler struct {
-	store   *store.Store
-	logger  *slog.Logger
-	baseURL string
+	store     *store.Store
+	logger    *slog.Logger
+	baseURL   string
+	publisher *queue.Publisher
 }
 
-func New(s *store.Store, logger *slog.Logger, baseURL string) *Handler {
-	return &Handler{store: s, logger: logger, baseURL: baseURL}
+func New(s *store.Store, logger *slog.Logger, baseURL string, publisher *queue.Publisher) *Handler {
+	return &Handler{store: s, logger: logger, baseURL: baseURL, publisher: publisher}
 }
 
 type shortenRequest struct {
@@ -94,7 +97,11 @@ func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO (Fas 5): publicera klick-event till kön här.
+	h.publisher.PublishClickEvent(r.Context(), queue.ClickEvent{
+		Code:        u.Code,
+		OriginalURL: u.OriginalURL,
+		ClickedAt:   time.Now().UTC(),
+	})
 
 	http.Redirect(w, r, u.OriginalURL, http.StatusFound)
 }

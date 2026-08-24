@@ -14,6 +14,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/rini/url-shortener/go-api/internal/handler"
+	"github.com/rini/url-shortener/go-api/internal/queue"
 	"github.com/rini/url-shortener/go-api/internal/store"
 	"github.com/rini/url-shortener/go-api/migrations"
 )
@@ -35,8 +36,12 @@ func main() {
 	}
 	defer db.Close()
 
+	rabbitURL := envOrDefault("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+	publisher := queue.Connect(rabbitURL, logger)
+	defer publisher.Close()
+
 	baseURL := envOrDefault("BASE_URL", "http://localhost:8080")
-	h := handler.New(db, logger, baseURL)
+	h := handler.New(db, logger, baseURL, publisher)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
