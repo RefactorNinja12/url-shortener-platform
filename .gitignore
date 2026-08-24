@@ -1,0 +1,11 @@
+# Go
+services/go-api/bin/
+*.exe
+
+# Env-filer med hemligheter
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
