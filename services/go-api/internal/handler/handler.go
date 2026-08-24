@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/rini/url-shortener/go-api/internal/auth"
 	"github.com/rini/url-shortener/go-api/internal/queue"
 	"github.com/rini/url-shortener/go-api/internal/shortener"
 	"github.com/rini/url-shortener/go-api/internal/store"
@@ -25,10 +26,11 @@ type Handler struct {
 	logger    *slog.Logger
 	baseURL   string
 	publisher *queue.Publisher
+	verifier  *auth.Verifier
 }
 
-func New(s *store.Store, logger *slog.Logger, baseURL string, publisher *queue.Publisher) *Handler {
-	return &Handler{store: s, logger: logger, baseURL: baseURL, publisher: publisher}
+func New(s *store.Store, logger *slog.Logger, baseURL string, publisher *queue.Publisher, verifier *auth.Verifier) *Handler {
+	return &Handler{store: s, logger: logger, baseURL: baseURL, publisher: publisher, verifier: verifier}
 }
 
 type shortenRequest struct {
@@ -40,6 +42,12 @@ type shortenResponse struct {
 }
 
 func (h *Handler) ShortenURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.verifier.UserIDFromRequest(r)
+	if err != nil {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+
 	var req shortenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -50,7 +58,7 @@ func (h *Handler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.createWithUniqueCode(r.Context(), req.URL)
+	u, err := h.createWithUniqueCode(r.Context(), req.URL, userID)
 	if err != nil {
 		h.logger.Error("failed to create short url", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -63,7 +71,7 @@ func (h *Handler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 // createWithUniqueCode genererar en kod och försöker spara den. Vid en
 // kollision (UNIQUE-constraint) genereras en ny kod och vi försöker igen,
 // upp till maxCodeGenerationAttempts gånger.
-func (h *Handler) createWithUniqueCode(ctx context.Context, originalURL string) (*store.URL, error) {
+func (h *Handler) createWithUniqueCode(ctx context.Context, originalURL string, ownerID int64) (*store.URL, error) {
 	var lastErr error
 	for attempt := 0; attempt < maxCodeGenerationAttempts; attempt++ {
 		code, err := shortener.GenerateCode()
@@ -71,7 +79,7 @@ func (h *Handler) createWithUniqueCode(ctx context.Context, originalURL string) 
 			return nil, err
 		}
 
-		u, err := h.store.CreateURL(ctx, code, originalURL)
+		u, err := h.store.CreateURL(ctx, code, originalURL, &ownerID)
 		if err == nil {
 			return u, nil
 		}

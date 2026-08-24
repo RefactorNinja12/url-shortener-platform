@@ -98,7 +98,8 @@ func TestStore_CreateAndGetURL(t *testing.T) {
 	s := setupTestStore(t)
 	ctx := context.Background()
 
-	created, err := s.CreateURL(ctx, "abc1234", "https://example.com")
+	ownerID := int64(7)
+	created, err := s.CreateURL(ctx, "abc1234", "https://example.com", &ownerID)
 	if err != nil {
 		t.Fatalf("CreateURL failed: %v", err)
 	}
@@ -113,6 +114,9 @@ func TestStore_CreateAndGetURL(t *testing.T) {
 	}
 	if created.CreatedAt.IsZero() {
 		t.Error("expected CreatedAt to be set")
+	}
+	if created.OwnerID == nil || *created.OwnerID != ownerID {
+		t.Errorf("expected OwnerID %d, got %v", ownerID, created.OwnerID)
 	}
 
 	fetched, err := s.GetURL(ctx, "abc1234")
@@ -138,11 +142,11 @@ func TestStore_CreateURL_DuplicateCode(t *testing.T) {
 	s := setupTestStore(t)
 	ctx := context.Background()
 
-	if _, err := s.CreateURL(ctx, "dupe123", "https://example.com/one"); err != nil {
+	if _, err := s.CreateURL(ctx, "dupe123", "https://example.com/one", nil); err != nil {
 		t.Fatalf("first CreateURL failed: %v", err)
 	}
 
-	_, err := s.CreateURL(ctx, "dupe123", "https://example.com/two")
+	_, err := s.CreateURL(ctx, "dupe123", "https://example.com/two", nil)
 	if err == nil {
 		t.Fatal("expected an error when inserting a duplicate code, got nil")
 	}
