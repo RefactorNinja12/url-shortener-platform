@@ -1,4 +1,4 @@
-.PHONY: run test lint db-up db-down db-reset tidy
+.PHONY: run test lint db-up db-down db-reset tidy up down
 
 API_DIR  := services/go-api
 DB_URL   := postgres://postgres:postgres@localhost:5432/urlshortener?sslmode=disable
@@ -31,3 +31,11 @@ db-down:
 db-reset:
 	docker compose down -v
 	docker compose up -d postgres redis
+
+# Bygg och starta hela stacken (go-api + Postgres + Redis) i containers
+up:
+	docker compose up -d --build
+
+# Stoppa hela stacken (behåller data)
+down:
+	docker compose down
