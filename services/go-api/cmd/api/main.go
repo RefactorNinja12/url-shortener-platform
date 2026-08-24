@@ -39,6 +39,9 @@ func main() {
 	h := handler.New(db, logger, baseURL)
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	mux.HandleFunc("POST /shorten", h.ShortenURL)
 	mux.HandleFunc("GET /{code}", h.Redirect)
 
